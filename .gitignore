@@ -12,5 +12,6 @@ script_vae*
 misc/
 plots*/
 *cpu_results.json
+*mask_results.json
 *gemma_results.json
 test_train_fitting_metrics/

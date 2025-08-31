@@ -32,7 +32,6 @@ def get_mask_from_segmap(segmentation_map, target_colors, avoid_colors, toleranc
         mask = np.logical_or(mask, close)
 
     mask = (mask * 255).astype(np.uint8)
-    mask = remove_unconn(mask)
     mask = cv2.dilate(mask, np.ones((5, 5), np.uint8), iterations=dil_its)
 
     # include for removing body from mask

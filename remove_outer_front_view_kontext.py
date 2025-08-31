@@ -45,7 +45,7 @@ def main(dataset_dir, garment_data_json, index):
     # Load FluxKontext
     pipe_kontext = FluxKontextPipeline.from_pretrained("black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16, safety_checker=None).to("cuda")
     pipe_kontext.safety_checker = disabled_safety_checker
-    outer_filename = f"./test_fkon/{scan_name}_outer.png"
+    outer_filename = f"./test_fkon/{scan_name}_1_outer.png"
     if not os.path.isfile(outer_filename):
         scan_image = Image.open(copy_filename)
         if 'outer' not in scan_gen_args:
@@ -60,7 +60,7 @@ def main(dataset_dir, garment_data_json, index):
             print(f"Generated image saved as {outer_filename}")
             del gen_image; gc.collect(); torch.cuda.empty_cache()
         
-    inner_filename = f"./test_fkon/{scan_name}_inner.png"
+    inner_filename = f"./test_fkon/{scan_name}_2_inner.png"
     if not os.path.isfile(inner_filename):
         image_no_outer = Image.open(outer_filename)
         prompt = scan_gen_args['inner']['prompt']

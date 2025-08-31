@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import sys
+import glob
 
 # --- Configuration ---
 JSON_FILE = 'file.json'
@@ -17,10 +18,6 @@ METRIC_MAP = {
     'ssim_nongen_remove_outer': 'SSIM (Unmodified region - Outer Removal)',
     'psnr_nongen_remove_inner': 'PSNR (Unmodified region - Inner Removal)',
     'ssim_nongen_remove_inner': 'SSIM (Unmodified region - Inner Removal)',
-}
-
-IOU_LABELS = ['Hair', 'Shoes']
-IOU_MAP = {
     'ious_orig-remove_outer': f"IOU (Outer Removal)",
     'ious_orig-remove_inner': f"IOU (Inner Removal)",
 }
@@ -52,29 +49,12 @@ def load_and_process_data(file_path):
                         row[name] = np.nan
                 else:
                     row[name] = np.nan
-
-            # Process IoU metrics
-            for key, name_prefix in IOU_MAP.items():
-                if key in scan_data and scan_data[key]:
-                    try:
-                        iou_values = scan_data[key][i][1:3]
-                        val = 0
-                        for j, label in enumerate(IOU_LABELS):
-                            val += float(iou_values[j])/2
-                        row[name_prefix] = val if val != -1.0 else np.nan
-                    except (IndexError, TypeError):
-                        # Ensure all columns are created even if data is missing
-                        row[name_prefix] = np.nan
-                else:
-                    row[name_prefix] = np.nan
-            
             processed_rows.append(row)
 
     df = pd.DataFrame(processed_rows)
     # Reorder columns for logical presentation
     base_metrics = list(METRIC_MAP.values())
-    iou_metrics = [prefix for prefix in IOU_MAP.values()]
-    df = df[['scan', 'index'] + base_metrics + iou_metrics]
+    df = df[['scan', 'index'] + base_metrics]
     
     return df
 
@@ -98,8 +78,6 @@ def analyze_and_plot(df, group_by_col, analysis_name, generate_bar_plots=True):
     if generate_bar_plots:
         print(f"Generating bar plots for averages per {analysis_name}...")
         for column in avg_df.columns:
-            if 'IOU' in column or 'index' in column:
-                continue
             plt.figure(figsize=(10, 6))
             avg_df[column].plot(kind='bar')
             plt.title(f'Average {column} per {analysis_name}')
@@ -147,7 +125,7 @@ def generate_boxplots(df, suffix):
 
     plt.figure(figsize=(20, 12))
     # Use the DataFrame passed as an argument
-    df[main_metrics].plot(kind='box', subplots=True, layout=(2, 3), figsize=(18, 10), sharey=False)
+    df[main_metrics].plot(kind='box', subplots=True, layout=(2, 4), figsize=(18, 10), sharey=False)
     
     # Update the title to be more descriptive based on the suffix
     plt.suptitle(f'Distribution of Core Metrics ({suffix})', fontsize=18, y=1.02)
@@ -158,37 +136,43 @@ def generate_boxplots(df, suffix):
     plt.close()
     print(f"Metric distribution box plots saved to {plot_path}")
 
-
 if __name__ == "__main__":
-
     if len(sys.argv) < 2:
-        print("Usage: python plots.py <json_file>")
+        print("Usage: python plots.py <json_glob_pattern>")
         sys.exit(1)
 
-    JSON_FILE = sys.argv[1]
-    if 'sweeping' in JSON_FILE:
-        method = os.path.basename(JSON_FILE)[:len('sweeping_anchors_1_1_2_0')]
-    elif 'equally' in JSON_FILE:
-        method = os.path.basename(JSON_FILE)[:len('equallyspaced_anchors_3_2_3_2_5')]
-    OUTPUT_DIR = f"./plots_psnr_ssim_ious/{method}"
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    json_glob = sys.argv[1]
+    json_files = glob.glob(json_glob)
+    if not json_files:
+        print(f"No JSON files found matching pattern: {json_glob}")
+        sys.exit(1)
 
-    # Load and process data
-    full_df = load_and_process_data(JSON_FILE)
-    full_df.round(4).to_csv(os.path.join(OUTPUT_DIR, 'full.csv'))
-    print("Data loaded and processed successfully.")
+    for JSON_FILE in json_files:
+        if 'sweeping' in JSON_FILE:
+            method = os.path.basename(JSON_FILE)[:len('sweeping_anchors_1_1_2_0')]
+        elif 'equally' in JSON_FILE:
+            method = os.path.basename(JSON_FILE)[:len('equallyspaced_anchors_3_2_3_2_5')]
+        else:
+            method = os.path.splitext(os.path.basename(JSON_FILE))[0]
+        OUTPUT_DIR = f"./plots_psnr_ssim_ious/{method}"
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-    # --- Run Analyses ---
+        # Load and process data
+        full_df = load_and_process_data(JSON_FILE)
+        full_df.round(4).to_csv(os.path.join(OUTPUT_DIR, 'full.csv'))
+        print(f"Data loaded and processed successfully for {JSON_FILE}.")
 
-    # 1. Averages per Index (Camera View)
-    avg_per_index_df = analyze_and_plot(full_df, 'index', 'Index')
-    generate_boxplots(avg_per_index_df, "Per Index Averages")
+        # --- Run Analyses ---
 
-    # 2. Averages per Scan, and store the resulting table for the box plot
-    avg_per_scan_df = analyze_and_plot(full_df, 'scan', 'Scan', generate_bar_plots=False)
-    generate_boxplots(avg_per_scan_df, "Per Scan Averages")
+        # 1. Averages per Index (Camera View)
+        avg_per_index_df = analyze_and_plot(full_df, 'index', 'Index')
+        generate_boxplots(avg_per_index_df, "Per Index Averages")
 
-    # 3. Overall Averages
-    analyze_overall_metrics(full_df)
+        # 2. Averages per Scan, and store the resulting table for the box plot
+        avg_per_scan_df = analyze_and_plot(full_df, 'scan', 'Scan', generate_bar_plots=False)
+        generate_boxplots(avg_per_scan_df, "Per Scan Averages")
 
-    print(f"\n✅ Analysis complete. All outputs are saved in the '{OUTPUT_DIR}' directory.")
+        # 3. Overall Averages
+        analyze_overall_metrics(full_df)
+
+        print(f"\n✅ Analysis complete. All outputs are saved in the '{OUTPUT_DIR}' directory for {JSON_FILE}.")

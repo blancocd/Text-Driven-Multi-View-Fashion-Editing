@@ -48,8 +48,8 @@ def iou(mask1, mask2):
     return intersection, union
 
 def get_ious(segformer_fn, gen_segformer_fn, dress):
-    segformer_map = np.array(transp_to_white(Image.open(segformer_fn)))
-    gen_segformer_map = np.array(Image.open(gen_segformer_fn))
+    segformer_map = np.array(transp_to_white(Image.open(segformer_fn).convert('RGB')))
+    gen_segformer_map = np.array(Image.open(gen_segformer_fn).convert('RGB'))
     union_count, intersection_count = 0, 0
     for target_color in fourddress_palette[1:-1]:
         segformer_mask = np.all(np.abs(segformer_map - target_color) <= 5, axis=-1)
