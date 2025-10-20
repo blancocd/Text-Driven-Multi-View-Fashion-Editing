@@ -23,7 +23,7 @@ def prepare_data(dataset_dir, gen_dir, scan_name, method):
 
         # Separate frames into odd and even lists
         gen_frames = []
-        for frame in enumerate(transforms["frames"]):
+        for frame in transforms["frames"]:
             # Extract the image number from the file path
             num_str = os.path.basename(frame["image_path"]).split("_")[-1]
             img_num_transforms = int(num_str)
@@ -37,7 +37,7 @@ def prepare_data(dataset_dir, gen_dir, scan_name, method):
             frame["file_path"] = f"./images/train_{img_num_transforms:04d}"
             gen_frames.append(frame)
 
-        for i, frame in enumerate(gen_frames):
+        for frame in gen_frames:
             # Copy and rename the image
             num_str = os.path.basename(frame["file_path"]).split("_")[-1]
             img_num_transforms = int(num_str)

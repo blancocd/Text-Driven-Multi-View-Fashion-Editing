@@ -106,6 +106,11 @@ def get_sweeping_anchors_indices(initial_anchor_idx, num_views):
     indices_list[-1], indices_to_gen_save_flag_list[-1] = zip(*sorted_pairs)
     return indices_list, indices_to_gen_save_flag_list
 
+def get_mvadapter_indices():
+    indices = [4, 5, 0, 1, 2, 3]
+    to_save = [True, True, False, True, True, True]
+    return [indices], [to_save]
+
 
 def remove_garment_anchors(scan_dir, scan_out_dir, garment_type, initial_anchor_idx, indices_list, 
                            indices_to_gen_save_flag_list, flux_kontext_args, flux_fill_args, 
@@ -189,17 +194,33 @@ def remove_garment_anchors(scan_dir, scan_out_dir, garment_type, initial_anchor_
 
 
 def get_initial_anchor_idx(scan_dir, img_fns):
-    count_pixels = []
+    human_counts = []
+    hair_counts = []
     for img_fn in img_fns:
         seg_path = os.path.join(scan_dir, 'segmentation_masks', img_fn)
         seg_map = np.array(Image.open(seg_path).convert('RGB'))
-        human_mask = get_mask_4ddress(seg_map, 'human', dil_its=0, ero_its=None)
-        skin_mask = get_mask_4ddress(seg_map, 'skin', dil_its=0, ero_its=None)
-        inner_mask = get_mask_4ddress(seg_map, 'inner', dil_its=0, ero_its=None)
-        count_pixels.append(human_mask.sum()+2*skin_mask.sum()+inner_mask.sum())
-    highest_count = max(count_pixels)
-    return count_pixels.index(highest_count)
 
+        # Assuming your get_mask_4ddress function is available
+        human_mask = get_mask_4ddress(seg_map, 'human') 
+        hair_mask = get_mask_4ddress(seg_map, 'hair')
+
+        human_counts.append(human_mask.sum())
+        hair_counts.append(hair_mask.sum())
+        
+    # Convert lists to NumPy arrays for efficient operations
+    human_counts = np.array(human_counts)
+    hair_counts = np.array(hair_counts)
+
+    sorted_indices_by_human = np.argsort(human_counts)
+    top_2_indices = sorted_indices_by_human[-2:]
+    
+    hair_counts_of_top_2 = hair_counts[top_2_indices]
+    winner_index_in_top_2 = np.argmin(hair_counts_of_top_2)
+    
+    # 5. Use that index to pick the final winner from our top_2_indices array
+    final_anchor_idx = top_2_indices[winner_index_in_top_2]
+    
+    return final_anchor_idx
 
 def remove_garments(dataset_dir, out_dir, garment_data_json, index, 
                     outer_dil_its=1, outer_ero_its=1,
@@ -217,6 +238,7 @@ def remove_garments(dataset_dir, out_dir, garment_data_json, index,
     img_fns = sorted([f for f in os.listdir(img_dir) if f.endswith('.png') and f.startswith('train')])
     # indices_list, indices_to_gen_save_flag_list = get_sweeping_anchors_indices(initial_anchor_idx, len(img_fns))
     indices_list, indices_to_gen_save_flag_list = get_equally_spaced_anchors_indices(initial_anchor_idx, len(img_fns), 4)
+    # indices_list, indices_to_gen_save_flag_list = get_mvadapter_indices()
     
     # Removing outer garment
     garment_type = 'outer'
@@ -225,7 +247,7 @@ def remove_garments(dataset_dir, out_dir, garment_data_json, index,
         flux_kontext_args = scan_dict['flux_kontext_args'][garment_type]
         flux_fill_args = scan_dict['flux_fill_args'][garment_type]
 
-        remove_garment_anchors(scan_dir, scan_noouter_dir, 'upper', initial_anchor_idx, indices_list, 
+        remove_garment_anchors(scan_dir, scan_noouter_dir, 'outer', initial_anchor_idx, indices_list, 
                             indices_to_gen_save_flag_list, flux_kontext_args, flux_fill_args, 
                             verbose=True, dil_its=outer_dil_its, ero_its=outer_ero_its)
     else:
@@ -255,8 +277,6 @@ if __name__ == "__main__":
     outer_ero_its = int(sys.argv[6])
     inner_dil_its = int(sys.argv[7])
     inner_ero_its = int(sys.argv[8])
-
-    print(sys.argv)
 
     remove_garments(dataset_dir, out_dir, garment_data_json, index, 
                     outer_dil_its=outer_dil_its, outer_ero_its=outer_ero_its,

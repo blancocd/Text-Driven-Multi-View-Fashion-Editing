@@ -50,6 +50,8 @@ def get_mask_4ddress(segmentation_map, seg_label, dil_its=1, ero_its=1) -> np.nd
         target_colors.add(0)
     elif 'inner' in seg_label:
         target_colors.add(3)
+    elif 'hair' in seg_label:
+        target_colors.add(1)
     elif 'lower' in seg_label:
         target_colors.add(4)
     elif 'outer' in seg_label:
