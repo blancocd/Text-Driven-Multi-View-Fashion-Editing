@@ -13,19 +13,13 @@ from huggingface_hub import login
 import numpy as np
 from diffusers import FluxKontextPipeline, FluxFillPipeline
 import torch
+from partitioning import get_equally_spaced_anchors_indices_recursive, get_sweeping_anchors_indices
 
 # token = os.getenv("HUGGINGFACE_TOKEN")
 # login(token=token)
 
 import random
 MAX_SEED = np.iinfo(np.int32).max
-
-def disabled_safety_checker(images, clip_input):
-    if len(images.shape)==4:
-        num_images = images.shape[0]
-        return images, [False]*num_images
-    else:
-        return images, False
 
 def remove_garment_kontext(pipe, image, prompt, negative_prompt=None, true_cfg_scale=1.0, num_inference_steps=28, guidance_scale=3.5, seed = None):
     h, w = (image.height, image.width) if isinstance(image, Image.Image) else (image.shape[0], image.shape[1])
@@ -62,55 +56,6 @@ def remove_garment_fill(pipe, image, mask, prompt, seed = None):
     torch.cuda.empty_cache()
     return gen_image
 
-def get_equally_spaced_anchors_indices(initial_anchor_idx, num_views, num_anchors):
-    anchor_indices = [(initial_anchor_idx + (i * round(num_views / num_anchors))) % num_views for i in range(num_anchors)]
-    
-    anchor_groups = {i: [] for i in anchor_indices}
-    for index_to_assign in range(num_views):
-        min_distance = float('inf')
-        closest_anchor = -1
-        for anchor in anchor_indices:
-            direct_dist = abs(index_to_assign - anchor)
-            wrap_dist = num_views - direct_dist
-            distance = min(direct_dist, wrap_dist)
-            if distance < min_distance:
-                min_distance = distance
-                closest_anchor = anchor
-        anchor_groups[closest_anchor].append(index_to_assign)
-
-    indices_list, indices_to_gen_save_flag_list = [anchor_indices], [[False] + ([True] * (len(anchor_indices)-1))]
-    for anchor_idx in anchor_indices:
-        indices = anchor_groups[anchor_idx]
-        indices_to_gen_save = [i!=anchor_idx for i in indices]
-        if any(indices_to_gen_save):
-            indices_list.append(indices)
-            indices_to_gen_save_flag_list.append(indices_to_gen_save)
-
-    return indices_list, indices_to_gen_save_flag_list
-    
-
-def get_sweeping_anchors_indices(initial_anchor_idx, num_views):
-    curr_anchors = [initial_anchor_idx, initial_anchor_idx]
-    completed_indices = [initial_anchor_idx]
-    indices_list, indices_to_gen_save_flag_list = [], []
-    while len(completed_indices) != num_views:
-        indices = list(range(curr_anchors[0]-2, curr_anchors[0]+1)) + list(range(curr_anchors[1], curr_anchors[1]+3))
-        indices = list(dict.fromkeys([(i + num_views) % num_views for i in indices]))
-        curr_anchors = [indices[0], indices[-1]]
-        indices_to_gen_save = [i not in completed_indices for i in indices]
-        completed_indices.extend([i for i in indices if i not in completed_indices])
-        indices_list.append(indices)
-        indices_to_gen_save_flag_list.append(indices_to_gen_save)
-        
-    sorted_pairs = sorted(zip(indices_list[-1], indices_to_gen_save_flag_list[-1]), key=lambda pair: pair[0], reverse=True)
-    indices_list[-1], indices_to_gen_save_flag_list[-1] = zip(*sorted_pairs)
-    return indices_list, indices_to_gen_save_flag_list
-
-def get_mvadapter_indices():
-    indices = [4, 5, 0, 1, 2, 3]
-    to_save = [True, True, False, True, True, True]
-    return [indices], [to_save]
-
 
 def remove_garment_anchors(scan_dir, scan_out_dir, garment_type, initial_anchor_idx, indices_list, 
                            indices_to_gen_save_flag_list, flux_kontext_args, flux_fill_args, 
@@ -135,7 +80,6 @@ def remove_garment_anchors(scan_dir, scan_out_dir, garment_type, initial_anchor_
 
     # Load FluxKontext
     pipe_kontext = FluxKontextPipeline.from_pretrained("black-forest-labs/FLUX.1-Kontext-dev", torch_dtype=torch.bfloat16, safety_checker=None).to("cuda")
-    pipe_kontext.safety_checker = disabled_safety_checker
 
     # Remove garment from view with Flux Kontext. White bg works better with these models.
     front_view_img = transp_to_white(Image.open(os.path.join(scan_dir, 'images', img_fns[initial_anchor_idx])))
@@ -146,7 +90,6 @@ def remove_garment_anchors(scan_dir, scan_out_dir, garment_type, initial_anchor_
 
     # Load FluxFill pipeline
     pipe_fill = FluxFillPipeline.from_pretrained("black-forest-labs/FLUX.1-Fill-dev", torch_dtype=torch.bfloat16, safety_checker=None).to("cuda")
-    pipe_fill.safety_checker = disabled_safety_checker
 
     vcomment(f"Starting {len(indices_list)} iterations to generate all views:")
     for indices, indices_to_gen_save_flag in zip(indices_list, indices_to_gen_save_flag_list):

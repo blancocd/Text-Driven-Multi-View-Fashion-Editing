@@ -66,7 +66,7 @@ def main(gen_method_dir, garment_data_json, indices_step_sample):
                     f'Your task is to rate the quality of the removal. '
                     f'On a scale from 1 to 10, rate the removal. '
                     f'10 means that the removal was successful and the person is only wearing a {flux_fill_outer_prompt}. '
-                    f'0 means that the removal was unsuccessful and the person is wearing a jacket, blazer, or outer garment on top of the {flux_fill_outer_prompt}.'
+                    f'1 means that the removal was unsuccessful and the person is wearing a jacket, blazer, or outer garment on top of the {flux_fill_outer_prompt}.'
                 )
 
                 # First prompt: succesfully_removed

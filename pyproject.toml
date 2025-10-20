@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "flux_removes_garments"
 version = "0.1.0"
-description = "A project for using FluxKontext and FluxFill to remove outer garments."
+description = "A project for using FluxKontext and FluxFill to remove outer garments from multiview images in a consistent manner."
 requires-python = ">=3.10"
 
 # Install these first:
@@ -24,4 +24,8 @@ dependencies = [
     "sentencepiece",
     "accelerate",
     "protobuf"
+    "graphviz"
 ]
+
+[tool.setuptools]
+packages = ["metrics", "segmentation"] 
