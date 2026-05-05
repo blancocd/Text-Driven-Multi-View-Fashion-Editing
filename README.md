@@ -1,4 +1,4 @@
-# **Flux Garment Remover**
+# **Text-Driven Multi-View Fashion Editing**
 
 A project for using FluxKontext and FluxFill to remove outer garments in a consistent way from multi-view images of people.
 
