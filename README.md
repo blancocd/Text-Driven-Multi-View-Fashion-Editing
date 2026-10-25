@@ -1,4 +1,14 @@
-# **Text-Driven Multi-View Fashion Editing**
+<div align="center">
+
+# Text-Driven Multi-View Fashion Editing
+
+**César Díaz Blanco**
+
+[![Paper](https://img.shields.io/badge/Paper-PDF-b31b1b.svg)](https://blancocd.com/research/text_driven_mv_fashion_editing.pdf)
+
+</div>
+
+---
 
 A project for using FluxKontext and FluxFill to remove outer garments in a consistent way from multi-view images of people.
 
@@ -43,7 +53,7 @@ The `test_kontext_generation.py` script is designed for this purpose.
 
 1. Start with a descriptive prompt.
 2. Run the test script with several different seeds. A good prompt might only work well with a specific seed.
-4. If you don't get good results, try refining the prompt and repeat the process.
+3. If you don't get good results, try refining the prompt and repeat the process.
 
 To run the test script, you can edit and use the provided shell script `script_kontext_test.sh` which already submits many jobs in an array job. If you set the seed argument to `None` in the Python script, a random seed will be used, and the output image will be saved as `test_{seed}.png`. This helps you identify which random seed produced a desirable result.
 
